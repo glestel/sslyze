@@ -310,10 +310,12 @@ class CertificateInfoScanResult(PluginScanResult):
         elif self.successful_trust_store and not self.is_certificate_chain_order_valid:
             for cert in self.certificate_chain:
                 if isinstance(cert.signature_hash_algorithm, hashes.SHA1):
-                    # Get certificate name
-                    cert_name = CertificateUtils.get_printable_name(cert.subject).lower()
-                    # Avoid root certificate that can still be signed with SHA1
-                    if "root" not in cert_name:
+                    # Compare subject and issuer to avoid checking root certificate signed with SHA1
+                    if cert.subject != cert.issuer and len(self.certificate_chain) > 1:
+                        self.has_sha1_in_certificate_chain = True
+                        break
+                    # Check for the corner case were certificate is self-signed and only certificate sent
+                    elif cert.subject == cert.issuer and len(self.certificate_chain) == 1:
                         self.has_sha1_in_certificate_chain = True
                         break
 
