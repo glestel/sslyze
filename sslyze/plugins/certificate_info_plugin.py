@@ -310,14 +310,16 @@ class CertificateInfoScanResult(PluginScanResult):
         elif self.successful_trust_store and not self.is_certificate_chain_order_valid:
             for cert in self.certificate_chain:
                 if isinstance(cert.signature_hash_algorithm, hashes.SHA1):
-                    # Compare subject and issuer to avoid checking root certificate signed with SHA1
-                    if cert.subject != cert.issuer and len(self.certificate_chain) > 1:
+                    # Check if the certificate is a root certificate
+                    if self.successful_trust_store._get_certificate_with_subject(cert.subject):
+                        continue
+                    else:
                         self.has_sha1_in_certificate_chain = True
-                        break
-                    # Check for the corner case were certificate is self-signed and only certificate sent
-                    elif cert.subject == cert.issuer and len(self.certificate_chain) == 1:
-                        self.has_sha1_in_certificate_chain = True
-                        break
+        # As a fallback, just check the leaf certificate (still better than nothing)
+        else:
+            cert = self.certificate_chain[0]
+            if isinstance(cert.signature_hash_algorithm, hashes.SHA1):
+                    self.has_sha1_in_certificate_chain = True
 
     def __getstate__(self):
         # This object needs to be pick-able as it gets sent through multiprocessing.Queues
